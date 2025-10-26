@@ -78,4 +78,45 @@ app.MapPost("/api/books", (Book newBook) =>
     return Results.Created($"/api/books/{newBook.ID}", newBook);
 });
 
+app.MapGet("/api/books", (int? publicationYear, string? sortBy) =>
+{
+    var query = _books.AsEnumerable();
+
+    if (publicationYear.HasValue)
+    {
+        query = query.Where(b => b.PublicationYear == publicationYear.Value);
+    }
+
+    var bookDtos = query.Select(book =>
+    {
+        var author = _authors.FirstOrDefault(a => a.ID == book.AuthorID);
+        return new BookDto
+        {
+            ID = book.ID,
+            Title = book.Title,
+            AuthorName = author != null ? author.Name : "Unknown",
+            PublicationYear = book.PublicationYear
+        };
+    });
+
+    if (!string.IsNullOrWhiteSpace(sortBy))
+    {
+        if (sortBy.ToLower() == "title")
+        {
+            bookDtos = bookDtos.OrderBy(b => b.Title);
+        }
+        else if (sortBy.ToLower() == "year")
+        {
+            bookDtos = bookDtos.OrderBy(b => b.PublicationYear);
+        }
+        else
+        {
+            return Results.BadRequest($"Invalid sort field '{sortBy}'. Allowed values: title, year.");
+        }
+    }
+
+    return Results.Ok(bookDtos.ToList());
+});
+
+
 app.Run();
